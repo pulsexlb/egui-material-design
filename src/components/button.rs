@@ -22,12 +22,12 @@ pub struct MaterialButtonStyle {
     pub padding: f32,
     pub leading_space: f32,
     pub between_icon_label_space: f32,
-    pub displayed_container_color: Color32,
-    pub displayed_container_opacity: f32,
-    pub displayed_label_color: Color32,
-    pub displayed_label_opacity: f32,
-    pub displayed_icon_color: Color32,
-    pub displayed_icon_opacity: f32,
+    pub disabled_container_color: Color32,
+    pub disabled_container_opacity: f32,
+    pub disabled_label_color: Color32,
+    pub disabled_label_opacity: f32,
+    pub disabled_icon_color: Color32,
+    pub disabled_icon_opacity: f32,
     pub hovered_container_layer_color: Color32,
     pub hovered_container_layer_opacity: f32,
     pub hovered_label_color: Color32,
@@ -55,12 +55,12 @@ impl MaterialButtonStyle {
             padding: 15.0,
             leading_space: 24.0,
             between_icon_label_space: 8.0,
-            displayed_container_color: argb_to_color32(scheme.on_surface),
-            displayed_container_opacity: 0.1,
-            displayed_label_color: argb_to_color32(scheme.on_surface),
-            displayed_label_opacity: 0.38,
-            displayed_icon_color: argb_to_color32(scheme.on_surface),
-            displayed_icon_opacity: 0.38,
+            disabled_container_color: argb_to_color32(scheme.on_surface),
+            disabled_container_opacity: 0.1,
+            disabled_label_color: argb_to_color32(scheme.on_surface),
+            disabled_label_opacity: 0.38,
+            disabled_icon_color: argb_to_color32(scheme.on_surface),
+            disabled_icon_opacity: 0.38,
             hovered_container_layer_color: argb_to_color32(scheme.on_primary),
             hovered_container_layer_opacity: 0.08,
             hovered_label_color: argb_to_color32(scheme.on_primary),
@@ -78,7 +78,7 @@ pub struct MaterialButton {
     pub text: String,
     pub icon: Option<u32>, // todo: add icon support
     pub style: MaterialButtonStyle,
-    pub display: bool,
+    pub disable: bool,
 }
 
 impl MaterialButton {
@@ -87,8 +87,12 @@ impl MaterialButton {
             text,
             icon: None,
             style: MaterialButtonStyle::normal(scheme),
-            display: false,
+            disable: false,
         }
+    }
+
+    pub fn with_disable(self, disable: bool) -> Self {
+        Self { disable, ..self }
     }
 }
 
@@ -98,7 +102,7 @@ impl Widget for MaterialButton {
             text,
             icon: _icon,
             style,
-            display,
+            disable,
         } = self;
 
         let text_size = ui.fonts(|f| {
@@ -115,13 +119,18 @@ impl Widget for MaterialButton {
         let button_height = text_size.y + 2.0 * style.padding;
         let desired_size = egui::vec2(button_width, button_height);
 
-        let (rect, response) = ui.allocate_exact_size(desired_size, Sense::click());
+        let sense = if disable {
+            Sense::empty()
+        } else {
+            Sense::click()
+        };
+        let (rect, response) = ui.allocate_exact_size(desired_size, sense);
 
         // 获取当前交互状态
         let is_pressed = response.is_pointer_button_down_on();
-        let is_hovering = response.hovered();
+        let is_hovering = response.hovered() && !disable;
 
-        // 计算当前背景色
+        // 计算颜色
         let bg_color = if is_pressed {
             style.container_color.lerp_to_gamma(
                 style.pressed_container_layer_color,
@@ -132,12 +141,23 @@ impl Widget for MaterialButton {
                 style.hovered_container_layer_color,
                 style.hovered_container_layer_opacity,
             )
-        } else if display {
+        } else if disable {
             style
-                .displayed_container_color
-                .linear_multiply(style.displayed_container_opacity)
+                .disabled_container_color
+                .linear_multiply(style.disabled_container_opacity)
         } else {
             style.container_color
+        };
+        let font_color = if is_pressed {
+            style.pressed_label_color
+        } else if is_hovering {
+            style.hovered_label_color
+        } else if disable {
+            style
+                .disabled_label_color
+                .linear_multiply(style.disabled_label_opacity)
+        } else {
+            style.label_color
         };
 
         // 默认圆角
@@ -155,7 +175,7 @@ impl Widget for MaterialButton {
             painter.rect_filled(rect, rounding, bg_color);
 
             // 绘制文字（居中）
-            let text_color = style.label_color;
+            let text_color = font_color;
 
             painter.text(
                 rect.center(),
