@@ -62,7 +62,7 @@ pub struct MaterialCheckboxStyle {
 impl MaterialCheckboxStyle {
     fn normal(scheme: &Scheme) -> Self {
         Self {
-            container_size: 18.0,
+            container_size: 16.0,
             container_rounding: 2.0,
             unselected_outline_color: argb_to_color32(scheme.on_surface_variant),
             unselected_outline_width: 2.0,
@@ -70,11 +70,11 @@ impl MaterialCheckboxStyle {
             selected_outline_width: 0.0,
             unselected_error_outline_color: argb_to_color32(scheme.error),
             selected_error_container_color: argb_to_color32(scheme.error),
-            icon_size: 18.0,
+            icon_size: 12.0,
             icon_selected_color: argb_to_color32(scheme.on_primary),
             icon_selected_error_color: argb_to_color32(scheme.on_error),
-            layer_size: 40.0,
-            layer_rounding: 20.0,
+            layer_size: 18.0,
+            layer_rounding: 2.0,
             disabled_unselected_outline_color: argb_to_color32(scheme.on_surface),
             disabled_unselected_outline_width: 2.0,
             disabled_container_opacity: 0.38,

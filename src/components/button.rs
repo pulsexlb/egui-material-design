@@ -13,14 +13,12 @@ pub struct MaterialButtonStyle {
     pub shadow_color: Color32,
     pub label_color: Color32,
     pub icon_color: Color32,
-    pub container_height: f32,
     pub font_size: f32,
     pub line_height: f32,
     pub icon_size: f32,
     pub rounding: f32,
     pub pressed_rounding: f32,
     pub padding: f32,
-    pub leading_space: f32,
     pub between_icon_label_space: f32,
     pub disabled_container_color: Color32,
     pub disabled_container_opacity: f32,
@@ -36,6 +34,8 @@ pub struct MaterialButtonStyle {
     pub pressed_container_layer_opacity: f32,
     pub pressed_label_color: Color32,
     pub pressed_icon_color: Color32,
+    pub button_width: Option<f32>,  // padding will not apply
+    pub button_height: Option<f32>, // padding will not apply
 }
 
 impl MaterialButtonStyle {
@@ -46,14 +46,12 @@ impl MaterialButtonStyle {
             shadow_color: argb_to_color32(scheme.shadow),
             label_color: argb_to_color32(scheme.on_primary),
             icon_color: argb_to_color32(scheme.on_primary),
-            container_height: 40.0,
             font_size: 14.0,
-            line_height: 20.0,
-            icon_size: 20.0,
-            rounding: 20.0,
+            line_height: 15.0,
+            icon_size: 15.0,
+            rounding: 12.0,
             pressed_rounding: 8.0,
             padding: 15.0,
-            leading_space: 24.0,
             between_icon_label_space: 8.0,
             disabled_container_color: argb_to_color32(scheme.on_surface),
             disabled_container_opacity: 0.1,
@@ -69,6 +67,40 @@ impl MaterialButtonStyle {
             pressed_container_layer_opacity: 0.1,
             pressed_label_color: argb_to_color32(scheme.on_primary),
             pressed_icon_color: argb_to_color32(scheme.on_primary),
+            button_width: None,
+            button_height: None,
+        }
+    }
+
+    pub fn elevated(scheme: &Scheme) -> Self {
+        Self {
+            container_color: argb_to_color32(scheme.secondary_container),
+            shadow_color: argb_to_color32(scheme.shadow),
+            label_color: argb_to_color32(scheme.on_secondary_container),
+            icon_color: argb_to_color32(scheme.on_secondary_container),
+            font_size: 12.0,
+            line_height: 15.0,
+            icon_size: 15.0,
+            rounding: 12.0,
+            pressed_rounding: 8.0,
+            padding: 15.0,
+            between_icon_label_space: 8.0,
+            disabled_container_color: argb_to_color32(scheme.on_surface),
+            disabled_container_opacity: 0.1,
+            disabled_label_color: argb_to_color32(scheme.on_surface),
+            disabled_label_opacity: 0.38,
+            disabled_icon_color: argb_to_color32(scheme.on_surface),
+            disabled_icon_opacity: 0.38,
+            hovered_container_layer_color: argb_to_color32(scheme.on_secondary_container),
+            hovered_container_layer_opacity: 0.08,
+            hovered_label_color: argb_to_color32(scheme.on_secondary_container),
+            hovered_icon_color: argb_to_color32(scheme.on_secondary_container),
+            pressed_container_layer_color: argb_to_color32(scheme.on_secondary_container),
+            pressed_container_layer_opacity: 0.1,
+            pressed_label_color: argb_to_color32(scheme.on_secondary_container),
+            pressed_icon_color: argb_to_color32(scheme.on_secondary_container),
+            button_width: None,
+            button_height: None,
         }
     }
 }
@@ -94,6 +126,40 @@ impl MaterialButton {
     pub fn with_disable(self, disable: bool) -> Self {
         Self { disable, ..self }
     }
+
+    pub fn with_padding(self, padding: f32) -> Self {
+        Self {
+            style: MaterialButtonStyle {
+                padding,
+                ..self.style
+            },
+            ..self
+        }
+    }
+
+    pub fn with_style(self, style: MaterialButtonStyle) -> Self {
+        Self { style, ..self }
+    }
+
+    pub fn with_width(self, width: f32) -> Self {
+        Self {
+            style: MaterialButtonStyle {
+                button_width: Some(width),
+                ..self.style
+            },
+            ..self
+        }
+    }
+
+    pub fn with_height(self, height: f32) -> Self {
+        Self {
+            style: MaterialButtonStyle {
+                button_height: Some(height),
+                ..self.style
+            },
+            ..self
+        }
+    }
 }
 
 impl Widget for MaterialButton {
@@ -115,8 +181,12 @@ impl Widget for MaterialButton {
         });
 
         // 创建一个“按钮区域”
-        let button_width = text_size.x + 2.0 * style.padding;
-        let button_height = text_size.y + 2.0 * style.padding;
+        let button_width = style
+            .button_width
+            .unwrap_or(text_size.x + 2.0 * style.padding);
+        let button_height = style
+            .button_height
+            .unwrap_or(text_size.y + 2.0 * style.padding);
         let desired_size = egui::vec2(button_width, button_height);
 
         let sense = if disable {
