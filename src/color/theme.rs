@@ -7,6 +7,7 @@ pub use material_colors::{
 };
 
 /// Color mode for Material Design
+#[derive(Clone, Copy)]
 pub enum ColorMode {
     Light,
     Dark,
@@ -67,7 +68,6 @@ impl MaterialTheme {
         visuals.error_fg_color = argb_to_color32(scheme.error);
 
         visuals.override_text_color = Some(argb_to_color32(scheme.on_surface));
-        visuals.weak_text_color = Some(argb_to_color32(scheme.on_surface_variant));
         visuals.hyperlink_color = argb_to_color32(scheme.primary);
 
         ctx.set_visuals(visuals);
