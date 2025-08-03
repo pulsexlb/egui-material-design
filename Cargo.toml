@@ -1,0 +1,8 @@
+[package]
+name = "egui_material"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+egui = "0.32.0"
+material-colors = "0.4.2"
