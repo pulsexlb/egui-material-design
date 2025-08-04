@@ -1,6 +1,6 @@
 //! Material Desigin Buttons
 
-use egui::{Color32, Response, Sense, Ui, Widget};
+use egui::{Color32, Response, Sense, Ui, Vec2, Widget, vec2};
 use material_colors::scheme::Scheme;
 
 use crate::utils::argb_to_color32;
@@ -18,7 +18,7 @@ pub struct MaterialButtonStyle {
     pub icon_size: f32,
     pub rounding: f32,
     pub pressed_rounding: f32,
-    pub padding: f32,
+    pub padding: Vec2,
     pub between_icon_label_space: f32,
     pub disabled_container_color: Color32,
     pub disabled_container_opacity: f32,
@@ -49,9 +49,9 @@ impl MaterialButtonStyle {
             font_size: 14.0,
             line_height: 15.0,
             icon_size: 15.0,
-            rounding: 12.0,
+            rounding: 20.0,
             pressed_rounding: 8.0,
-            padding: 15.0,
+            padding: vec2(15.0, 15.0),
             between_icon_label_space: 8.0,
             disabled_container_color: argb_to_color32(scheme.on_surface),
             disabled_container_opacity: 0.1,
@@ -81,9 +81,9 @@ impl MaterialButtonStyle {
             font_size: 12.0,
             line_height: 15.0,
             icon_size: 15.0,
-            rounding: 12.0,
+            rounding: 20.0,
             pressed_rounding: 8.0,
-            padding: 15.0,
+            padding: vec2(15.0, 15.0),
             between_icon_label_space: 8.0,
             disabled_container_color: argb_to_color32(scheme.on_surface),
             disabled_container_opacity: 0.1,
@@ -130,7 +130,27 @@ impl MaterialButton {
     pub fn with_padding(self, padding: f32) -> Self {
         Self {
             style: MaterialButtonStyle {
-                padding,
+                padding: vec2(padding, padding),
+                ..self.style
+            },
+            ..self
+        }
+    }
+
+    pub fn with_padding_x(self, padding_x: f32) -> Self {
+        Self {
+            style: MaterialButtonStyle {
+                padding: vec2(padding_x, self.style.padding.y),
+                ..self.style
+            },
+            ..self
+        }
+    }
+
+    pub fn with_padding_y(self, padding_y: f32) -> Self {
+        Self {
+            style: MaterialButtonStyle {
+                padding: vec2(self.style.padding.x, padding_y),
                 ..self.style
             },
             ..self
@@ -183,10 +203,10 @@ impl Widget for MaterialButton {
         // 创建一个“按钮区域”
         let button_width = style
             .button_width
-            .unwrap_or(text_size.x + 2.0 * style.padding);
+            .unwrap_or(text_size.x + 2.0 * style.padding.x);
         let button_height = style
             .button_height
-            .unwrap_or(text_size.y + 2.0 * style.padding);
+            .unwrap_or(text_size.y + 2.0 * style.padding.y);
         let desired_size = egui::vec2(button_width, button_height);
 
         let sense = if disable {

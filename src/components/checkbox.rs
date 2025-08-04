@@ -1,6 +1,6 @@
 //! Material Design checkbox
 
-use egui::{Color32, CornerRadius, Rect, Sense, Stroke, Vec2, Widget, pos2, text::LayoutJob, vec2};
+use egui::{Color32, CornerRadius, Rect, Sense, Stroke, Widget, pos2, text::LayoutJob, vec2};
 use material_colors::scheme::Scheme;
 
 use crate::utils::argb_to_color32;
@@ -174,7 +174,7 @@ impl Widget for MaterialCheckbox<'_> {
         // 计算颜色
         let (container_fill, outline_stroke, icon_color, layer_color, layer_opacity) = {
             let mut fill = Color32::TRANSPARENT;
-            let mut stroke = Stroke::NONE;
+            let mut stroke;
             let mut icon = Color32::TRANSPARENT;
             let mut layer = Color32::TRANSPARENT;
             let mut opacity = 0.0;
