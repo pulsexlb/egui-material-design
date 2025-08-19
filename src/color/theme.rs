@@ -34,20 +34,40 @@ impl MaterialTheme {
     }
 
     /// Get light theme color schemes
-    pub fn get_light(&self) -> &Scheme {
+    pub fn get_light_scheme(&self) -> &Scheme {
         &self.0.schemes.light
     }
 
     /// Get dark theme color schemes
-    pub fn get_dark(&self) -> &Scheme {
+    pub fn get_dark_scheme(&self) -> &Scheme {
         &self.0.schemes.dark
     }
 
     // Get the schemes in the current color mode
     pub fn get(&self) -> &Scheme {
         match self.1 {
-            ColorMode::Light => self.get_light(),
-            ColorMode::Dark => self.get_dark(),
+            ColorMode::Light => self.get_light_scheme(),
+            ColorMode::Dark => self.get_dark_scheme(),
+        }
+    }
+
+    /// Get Color Mode
+    pub fn get_dark_mode(&self) -> bool {
+        match self.1 {
+            ColorMode::Dark => true,
+            ColorMode::Light => false,
+        }
+    }
+
+    /// Set Color Mode
+    pub fn set_dark_mode(&mut self, dark: bool) {
+        match dark {
+            true => {
+                self.1 = ColorMode::Dark;
+            }
+            false => {
+                self.1 = ColorMode::Light;
+            }
         }
     }
 

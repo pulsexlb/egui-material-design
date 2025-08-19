@@ -6,4 +6,4 @@
 pub mod color;
 pub mod components;
 pub mod prelude;
-mod utils;
+pub mod utils;
