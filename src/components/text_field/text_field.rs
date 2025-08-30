@@ -4,13 +4,13 @@ use std::sync::Arc;
 use egui::emath::TSTransform;
 use egui::os::OperatingSystem;
 use egui::output::OutputEvent;
-use egui::text::{CCursor, CCursorRange, CursorRange, LayoutJob};
+use egui::text::{CCursor, CCursorRange, LayoutJob};
 use egui::text_selection::text_cursor_state::cursor_rect;
 use egui::text_selection::visuals::paint_text_selection;
 use egui::{
-    Align2, Context, CornerRadius, CursorIcon, Event, EventFilter, FontId, Galley, Id,
-    ImeEvent, Key, KeyboardShortcut, Margin, Modifiers, NumExt, Rect, Sense, Stroke, TextBuffer,
-    Ui, Widget, WidgetText, pos2, response, text_selection, vec2,
+    Align2, Context, CornerRadius, CursorIcon, Event, EventFilter, FontId, Galley, Id, ImeEvent,
+    Key, KeyboardShortcut, Margin, Modifiers, NumExt, Rect, Sense, Stroke, TextBuffer, Ui, Widget,
+    WidgetText, pos2, response, text_selection, vec2,
 };
 use material_colors::scheme::Scheme;
 
@@ -171,8 +171,8 @@ impl MaterialTextField<'_> {
         });
 
         // 排列
-        let mut layouter = move |ui: &Ui, text: &str, wrap_width: f32| {
-            let text = mask_if_password(password, text);
+        let mut layouter = move |ui: &Ui, text: &dyn TextBuffer, wrap_width: f32| {
+            let text = mask_if_password(password, text.as_str());
             let layout_job = if multiline {
                 LayoutJob::simple(text, font_id.clone(), input_color, wrap_width)
             } else {
@@ -182,7 +182,7 @@ impl MaterialTextField<'_> {
         };
 
         // galley
-        let mut galley = layouter(ui, text.as_str(), desired_width);
+        let mut galley = layouter(ui, text, desired_width);
 
         // id
         let (id, rect) = ui.allocate_space(vec2(desired_width, desired_height));
@@ -220,11 +220,9 @@ impl MaterialTextField<'_> {
                 if response.hovered() && text.is_mutable() {
                     ui.output_mut(|o| o.mutable_text_under_cursor = true);
                 }
-                // 计算单行偏移量
-                let singleline_offset = vec2(state.singleline_offset, 0.0);
                 // 计算指针位置对应的光标位置
                 let cursor_at_pointer =
-                    galley.cursor_from_pos(pointer_pos - rect.min + singleline_offset);
+                    galley.cursor_from_pos(pointer_pos - rect.min + state.text_offset);
                 // 如果启用了光标预览且指针在移动，显示光标预览
                 if ui.visuals().text_cursor.preview
                     && response.hovered()
@@ -274,9 +272,9 @@ impl MaterialTextField<'_> {
             ui.memory_mut(|mem| mem.set_focus_lock_filter(id, event_filter));
             // 确定默认光标范围：在末尾或默认位置
             let default_cursor_range = if cursor_at_end {
-                CursorRange::one(galley.end())
+                CCursorRange::one(galley.end())
             } else {
-                CursorRange::default()
+                CCursorRange::default()
             };
             // 处理键盘输入事件，返回是否更改了文本和新的光标范围
             let (changed, new_cursor_range) = events(
@@ -311,18 +309,18 @@ impl MaterialTextField<'_> {
             pos2(inner_rect.min.x, inner_rect.center().y - row_height / 2.0)
         };
         // 计算对齐偏移量
-        let align_offset = rect.left() - galley_pos.x;
+        let align_offset = rect.left_top() - galley_pos;
 
         // 处理单行文本的视觉裁剪（当文本比输入框宽时）
-        if clip_text && align_offset == 0.0 {
+        if clip_text && align_offset.x == 0.0 {
             // 获取光标位置
             let cursor_pos = match (cursor_range, ui.memory(|mem| mem.has_focus(id))) {
-                (Some(cursor_range), true) => galley.pos_from_cursor(&cursor_range.primary).min.x,
+                (Some(cursor_range), true) => galley.pos_from_cursor(cursor_range.primary).min.x,
                 _ => 0.0,
             };
 
             // 计算滚动偏移量
-            let mut offset_x = state.singleline_offset;
+            let mut offset_x = state.text_offset.x;
             let visible_range = offset_x..=offset_x + desired_width;
 
             // 如果光标不在可见范围内，调整偏移量
@@ -340,19 +338,19 @@ impl MaterialTextField<'_> {
                 .at_least(0.0);
 
             // 更新状态中的偏移量
-            state.singleline_offset = offset_x;
+            state.text_offset = vec2(offset_x, align_offset.y);
 
             // 应用偏移量到排版位置
             galley_pos -= vec2(offset_x, 0.0);
         } else {
-            state.singleline_offset = align_offset;
+            state.text_offset = align_offset;
         }
 
         // 检查选择范围是否改变
         let selection_changed = if let (Some(cursor_range), Some(prev_cursor_range)) =
             (cursor_range, prev_cursor_range)
         {
-            prev_cursor_range.as_ccursor_range() != cursor_range.as_ccursor_range()
+            prev_cursor_range != cursor_range
         } else {
             false
         };
@@ -496,13 +494,13 @@ impl MaterialTextField<'_> {
                     ui.is_enabled(),
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
+                    "",
                 )
             });
         } else if selection_changed {
             // 如果选择更改，输出选择更改事件
             let cursor_range = cursor_range.unwrap();
-            let char_range =
-                cursor_range.primary.ccursor.index..=cursor_range.secondary.ccursor.index;
+            let char_range = cursor_range.primary.index..=cursor_range.secondary.index;
             let info = egui::WidgetInfo::text_selection_changed(
                 ui.is_enabled(),
                 char_range,
@@ -516,6 +514,7 @@ impl MaterialTextField<'_> {
                     ui.is_enabled(),
                     mask_if_password(password, prev_text.as_str()),
                     mask_if_password(password, text.as_str()),
+                    "",
                 )
             });
         }
@@ -547,23 +546,22 @@ fn mask_if_password(is_password: bool, text: &str) -> String {
 
 // ----------------------------------------------------------------------------
 
-/// Check for (keyboard) events to edit the cursor and/or text.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 fn events(
-    ui: &Ui,
+    ui: &egui::Ui,
     state: &mut TextEditState,
     text: &mut dyn TextBuffer,
     galley: &mut Arc<Galley>,
-    layouter: &mut dyn FnMut(&Ui, &str, f32) -> Arc<Galley>,
+    layouter: &mut dyn FnMut(&Ui, &dyn TextBuffer, f32) -> Arc<Galley>,
     id: Id,
     wrap_width: f32,
     multiline: bool,
     password: bool,
-    default_cursor_range: CursorRange,
+    default_cursor_range: CCursorRange,
     char_limit: usize,
     event_filter: EventFilter,
     return_key: Option<KeyboardShortcut>,
-) -> (bool, CursorRange) {
+) -> (bool, CCursorRange) {
     let os = ui.ctx().os();
 
     let mut cursor_range = state.cursor.range(galley).unwrap_or(default_cursor_range);
@@ -572,7 +570,7 @@ fn events(
     // so that the undoer creates automatic saves even when there are no events for a while.
     state.undoer.lock().feed_state(
         ui.input(|i| i.time),
-        &(cursor_range.as_ccursor_range(), text.as_str().to_owned()),
+        &(cursor_range, text.as_str().to_owned()),
     );
 
     let copy_if_not_password = |ui: &Ui, text: String| {
@@ -597,12 +595,10 @@ fn events(
             event if cursor_range.on_event(os, event, galley, id) => None,
 
             Event::Copy => {
-                if cursor_range.is_empty() {
-                    None
-                } else {
+                if !cursor_range.is_empty() {
                     copy_if_not_password(ui, cursor_range.slice_str(text.as_str()).to_owned());
-                    None
                 }
+                None
             }
             Event::Cut => {
                 if cursor_range.is_empty() {
@@ -682,7 +678,7 @@ fn events(
                 if let Some((redo_ccursor_range, redo_txt)) = state
                     .undoer
                     .lock()
-                    .redo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                    .redo(&(cursor_range, text.as_str().to_owned()))
                 {
                     text.replace_with(redo_txt);
                     Some(*redo_ccursor_range)
@@ -700,7 +696,7 @@ fn events(
                 if let Some((undo_ccursor_range, undo_txt)) = state
                     .undoer
                     .lock()
-                    .undo(&(cursor_range.as_ccursor_range(), text.as_str().to_owned()))
+                    .undo(&(cursor_range, text.as_str().to_owned()))
                 {
                     text.replace_with(undo_txt);
                     Some(*undo_ccursor_range)
@@ -744,14 +740,14 @@ fn events(
                         state.ime_enabled = false;
 
                         if !prediction.is_empty()
-                            && cursor_range.secondary.ccursor.index
-                                == state.ime_cursor_range.secondary.ccursor.index
+                            && cursor_range.secondary.index
+                                == state.ime_cursor_range.secondary.index
                         {
                             let mut ccursor = text.delete_selected(&cursor_range);
                             text.insert_text_at(&mut ccursor, prediction, char_limit);
                             Some(CCursorRange::one(ccursor))
                         } else {
-                            let ccursor = cursor_range.primary.ccursor;
+                            let ccursor = cursor_range.primary;
                             Some(CCursorRange::one(ccursor))
                         }
                     }
@@ -769,21 +765,18 @@ fn events(
             any_change = true;
 
             // Layout again to avoid frame delay, and to keep `text` and `galley` in sync.
-            *galley = layouter(ui, text.as_str(), wrap_width);
+            *galley = layouter(ui, text, wrap_width);
 
             // Set cursor_range using new galley:
-            cursor_range = CursorRange {
-                primary: galley.from_ccursor(new_ccursor_range.primary),
-                secondary: galley.from_ccursor(new_ccursor_range.secondary),
-            };
+            cursor_range = new_ccursor_range;
         }
     }
 
-    state.cursor.set_range(Some(cursor_range));
+    state.cursor.set_char_range(Some(cursor_range));
 
     state.undoer.lock().feed_state(
         ui.input(|i| i.time),
-        &(cursor_range.as_ccursor_range(), text.as_str().to_owned()),
+        &(cursor_range, text.as_str().to_owned()),
     );
 
     (any_change, cursor_range)
@@ -815,7 +808,7 @@ fn remove_ime_incompatible_events(events: &mut Vec<Event>) {
 /// Returns `Some(new_cursor)` if we did mutate `text`.
 fn check_for_mutating_key_press(
     os: OperatingSystem,
-    cursor_range: &CursorRange,
+    cursor_range: &CCursorRange,
     text: &mut dyn TextBuffer,
     galley: &Galley,
     modifiers: &Modifiers,
@@ -828,9 +821,9 @@ fn check_for_mutating_key_press(
             } else if let Some(cursor) = cursor_range.single() {
                 if modifiers.alt || modifiers.ctrl {
                     // alt on mac, ctrl on windows
-                    text.delete_previous_word(cursor.ccursor)
+                    text.delete_previous_word(cursor)
                 } else {
-                    text.delete_previous_char(cursor.ccursor)
+                    text.delete_previous_char(cursor)
                 }
             } else {
                 text.delete_selected(cursor_range)
@@ -844,9 +837,9 @@ fn check_for_mutating_key_press(
             } else if let Some(cursor) = cursor_range.single() {
                 if modifiers.alt || modifiers.ctrl {
                     // alt on mac, ctrl on windows
-                    text.delete_next_word(cursor.ccursor)
+                    text.delete_next_word(cursor)
                 } else {
-                    text.delete_next_char(cursor.ccursor)
+                    text.delete_next_char(cursor)
                 }
             } else {
                 text.delete_selected(cursor_range)
@@ -859,7 +852,7 @@ fn check_for_mutating_key_press(
         }
 
         Key::H if modifiers.ctrl => {
-            let ccursor = text.delete_previous_char(cursor_range.primary.ccursor);
+            let ccursor = text.delete_previous_char(cursor_range.primary);
             Some(CCursorRange::one(ccursor))
         }
 
@@ -875,7 +868,7 @@ fn check_for_mutating_key_press(
 
         Key::W if modifiers.ctrl => {
             let ccursor = if let Some(cursor) = cursor_range.single() {
-                text.delete_previous_word(cursor.ccursor)
+                text.delete_previous_word(cursor)
             } else {
                 text.delete_selected(cursor_range)
             };
